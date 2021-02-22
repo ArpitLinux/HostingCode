@@ -1,0 +1,1664 @@
+home function handles the URL I'm talking about
+
+
+views.py
+```
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, UserChangeForm, PasswordChangeForm
+from django.contrib.auth.models import User
+from django.contrib.auth import login, logout, authenticate
+from django.db import IntegrityError
+from .models import Book, CartItem, OrderItem, Category, ProductReview
+from django.contrib.auth.decorators import login_required
+from .forms import BookForm
+from django.core.exceptions import ObjectDoesNotExist
+import random
+from django.core.paginator import Paginator
+from django.http import HttpResponseRedirect
+from display.models import CarouselDisplay1, CarouselDisplay2, CarouselDisplay3
+# Create your views here.
+
+removederror = ''
+
+
+def calculate(request):
+    oof = CartItem.objects.filter(user=request.user)
+    fianlprice = 0
+    for item in oof:
+        fianlprice += item.book.price
+
+        
+
+
+def signupuser(request):
+    if request.user.is_authenticated:
+        return render(request, 'main/alreadyloggedin.html')
+    elif request.user != request.user.is_authenticated:
+        if request.method == "GET":
+            return render(request, 'main/signupuser.html', {'form':UserCreationForm()})
+        elif request.method == "POST":
+            if request.POST['password1'] == request.POST['password2']:
+                try:
+                    user = User.objects.create_user(request.POST['username'], password=request.POST['password1'])
+                    user.save()
+                    login(request, user)
+                    return render(request, 'main/UserCreated.html')
+                except IntegrityError:
+                    return render(request, 'main/signupuser.html', {'form':UserCreationForm(), 'error':'That username has already been taken. Please choose a new username'})
+            else:
+                return render(request, 'main/signupuser.html', {'form':UserCreationForm(), 'error':'Passwords did not match'})
+
+def signinuser(request):
+    if request.user.is_authenticated:
+        return render(request, 'main/alreadyloggedin.html', {'error':'You are already logged in'})
+    elif request.user != request.user.is_authenticated:
+        if request.method == "GET":
+            return render(request, 'main/signinuser.html', {'form':AuthenticationForm()})
+        elif request.method == "POST":
+            user = authenticate(request, username=request.POST['username'], password=request.POST['password'])
+            if user is None:
+                return render(request, 'main/signinuser.html', {'form':AuthenticationForm(), 'error':'Username and password did not match'})
+            else:
+                login(request, user)
+                return render(request, 'main/loggedin.html', {'error':'You are now logged in!'})
+ 
+def logoutuser(request):
+    if request.user.is_authenticated:
+        if request.method == "GET": 
+            return render(request, 'main/logoutuser.html')
+        elif request.method == "POST":
+            logout(request)
+            return render(request, 'main/loggedin.html', {'error':'You are now logged out!'})
+    elif request.user != request.user.is_authenticated:
+        return render(request, 'main/alreadyloggedin.html', {'error':'You are not logged in'})
+    
+
+def home(request):
+    category = Category.objects.all()
+    carosel1 = CarouselDisplay1.objects.order_by('-id')[:1]
+    carosel2 = CarouselDisplay2.objects.order_by('-id')[:1]
+    carosel3 = CarouselDisplay3.objects.order_by('-id')[:1]
+    engineering_book = Category.objects.get(name="Engineering")
+    programming_book = Category.objects.get(name="Programming")
+    neuroscience_book = Category.objects.get(name="Neuroscience")
+    physics_book = Category.objects.get(name="Physics")
+    medical_book = Category.objects.get(name="Medical")
+    rocket_book = Category.objects.get(name="Rocket Science")
+    engineering_books1 = Book.objects.filter(category=engineering_book.id)[:3]
+    engineering_books2 = Book.objects.filter(category=engineering_book.id)[3:6]
+    engineering_books3 = Book.objects.filter(category=engineering_book.id)[6:9]
+    programming_books1 = Book.objects.filter(category=programming_book.id)[:3]
+    programming_books2 = Book.objects.filter(category=programming_book.id)[3:6]
+    programming_books3 = Book.objects.filter(category=programming_book.id)[6:9]
+    neuroscience_books1 = Book.objects.filter(category=neuroscience_book.id)[:3]
+    neuroscience_books2 = Book.objects.filter(category=neuroscience_book.id)[3:6]
+    neuroscience_books3 = Book.objects.filter(category=neuroscience_book.id)[6:9]
+    physics_books1 = Book.objects.filter(category=physics_book.id)[:3]
+    physics_books2 = Book.objects.filter(category=physics_book.id)[3:6]
+    physics_books3 = Book.objects.filter(category=physics_book.id)[6:9]
+    medical_books1 = Book.objects.filter(category=medical_book.id)[:3]
+    medical_books2 = Book.objects.filter(category=medical_book.id)[3:6]
+    medical_books3 = Book.objects.filter(category=medical_book.id)[6:9]
+    rocket_books1 = Book.objects.filter(category=rocket_book.id)[:3]
+    rocket_books2 = Book.objects.filter(category=rocket_book.id)[3:6]
+    rocket_books3 = Book.objects.filter(category=rocket_book.id)[6:9]
+    params = {'carosel1':carosel1, 'carosel2':carosel2, 'carosel3':carosel3, 'engineering_books1':engineering_books1,
+    'engineering_books2':engineering_books2, 'engineering_books3':engineering_books3, 'programming_books1':programming_books1,
+    'programming_books2':programming_books2, 'programming_books3':programming_books3, 'neuroscience_books1':neuroscience_books1,
+    'neuroscience_books2':neuroscience_books2, 'neuroscience_books3':neuroscience_books3, 'physics_books1':physics_books1,
+    'physics_books2':physics_books2, 'physics_books3':physics_books3, 'medical_books1':medical_books1,
+    'medical_books2':medical_books2, 'medical_books3':medical_books3, 'rocket_books1':rocket_books1,
+    'rocket_books2':rocket_books2, 'rocket_books3':rocket_books3, 'category':category
+    }
+    if request.user.is_authenticated:
+        oof = CartItem.objects.filter(user=request.user).values_list('book', flat=True)
+        lmao = OrderItem.objects.filter(user=request.user).values_list('book', flat=True)
+        hehe = CartItem.objects.filter(user=request.user)
+        number = 0
+        fianlprice = 0
+        for item in hehe:
+            fianlprice += item.book.price
+        for num in hehe:
+            number += 1
+        books = Book.objects.all()
+        true_params = {'price':fianlprice, 'error':'', 'cart':oof, 'order':lmao, 'number':number, 'items':hehe,'carosel1':carosel1, 'carosel2':carosel2, 'carosel3':carosel3, 'engineering_books1':engineering_books1,
+    'engineering_books2':engineering_books2, 'engineering_books3':engineering_books3, 'programming_books1':programming_books1,
+    'programming_books2':programming_books2, 'programming_books3':programming_books3, 'neuroscience_books1':neuroscience_books1,
+    'neuroscience_books2':neuroscience_books2, 'neuroscience_books3':neuroscience_books3, 'physics_books1':physics_books1,
+    'physics_books2':physics_books2, 'physics_books3':physics_books3, 'medical_books1':medical_books1,
+    'medical_books2':medical_books2, 'medical_books3':medical_books3, 'rocket_books1':rocket_books1,
+    'rocket_books2':rocket_books2, 'rocket_books3':rocket_books3, 'category':category}
+        return render(request, 'main/home.html', true_params)
+    else:
+        books = Book.objects.all()
+        return render(request, 'main/home.html', params)
+
+
+@login_required
+def addtocartforhome(request):
+    oof = CartItem.objects.filter(user=request.user)
+    fianlprice = 0
+    for item in oof:
+        fianlprice += item.book.price
+    books = Book.objects.all()
+    if request.method == 'POST':
+        if CartItem.objects.filter(user=request.user, book=Book.objects.get(pk=request.POST['bookid'])).exists():
+            return render(request, 'main/home.html', {'books':books, 'error':'That book is already in your cart!', 'price':fianlprice})
+            
+        else:
+            try:
+                book = Book.objects.get(pk=request.POST['bookid'])
+            except Book.DoesNotExist:
+                return redirect('home')
+            cart_item = CartItem.objects.create(book=book, user=request.user)
+            return redirect('home')
+            
+    elif request.method == 'GET':
+        return render(request, 'main/signinuser.html', {'form':BookForm})
+                                            
+
+@login_required
+def addtocartforproducts(request):
+    oof = CartItem.objects.filter(user=request.user)
+    fianlprice = 0
+    for item in oof:
+        fianlprice += item.book.price
+    books = Book.objects.all()
+    if request.method == 'POST':
+        if CartItem.objects.filter(user=request.user, book=Book.objects.get(pk=request.POST['bookid'])).exists():
+            return render(request, 'main/products.html', {'books':books, 'error':'That book is already in your cart!', 'price':fianlprice})
+            
+        else:
+            try:
+                book = Book.objects.get(pk=request.POST['bookid'])
+            except Book.DoesNotExist:
+                return redirect('showproducts')
+            cart_item = CartItem.objects.create(book=book, user=request.user)
+            return redirect('showproducts')
+            
+    elif request.method == 'GET':
+        return render(request, 'main/signinuser.html', {'form':BookForm})
+
+@login_required
+def removefromcartforcart(request):
+    if request.method == 'POST':
+        oof = CartItem.objects.filter(user=request.user)
+        fianlprice = 0
+        for item in oof:
+            fianlprice += item.book.price
+        books = Book.objects.all()
+        removebook = Book.objects.get(pk=request.POST['removeid'])
+        try:
+            cart_item = CartItem.objects.get(book=removebook, user=request.user).delete()
+        except ObjectDoesNotExist:
+            return render(request, 'main/cart.html', {'books':books, 'error':'That item is not in your cart!', 'price':fianlprice})
+        return redirect('showcart')
+    else:
+        pass
+
+@login_required
+def removefromcartforhome(request):
+    if request.method == 'POST':
+        oof = CartItem.objects.filter(user=request.user)
+        fianlprice = 0
+        for item in oof:
+            fianlprice += item.book.price
+        books = Book.objects.all()
+        removebook = Book.objects.get(pk=request.POST['removeid'])
+        try:
+            cart_item = CartItem.objects.get(book=removebook, user=request.user).delete()
+        except ObjectDoesNotExist:
+            removederror = 'That item is not in your cart!'
+            return redirect('home')
+        return redirect('home')
+    else:
+        pass
+
+@login_required
+def removefromcartforproducts(request):
+    if request.method == 'POST':
+        oof = CartItem.objects.filter(user=request.user)
+        fianlprice = 0
+        for item in oof:
+            fianlprice += item.book.price
+        books = Book.objects.all()
+        removebook = Book.objects.get(pk=request.POST['removeid'])
+        try:
+            cart_item = CartItem.objects.get(book=removebook, user=request.user).delete()
+        except ObjectDoesNotExist:
+            return render(request, 'main/products.html', {'books':books, 'error':'That item is not in your cart!', 'price':fianlprice})
+        return redirect('showproducts')
+    else:
+        pass
+
+
+def showproducts(request):
+    if request.user.is_authenticated:
+        oof = CartItem.objects.filter(user=request.user).values_list('book', flat=True)
+        lmao = OrderItem.objects.filter(user=request.user).values_list('book', flat=True)
+        hehe = CartItem.objects.filter(user=request.user)
+        category = Category.objects.all()
+        haha = Paginator(Book.objects.all(), 9)
+        page = request.GET.get('page')
+        number = 0
+        for num in hehe:
+            number += 1
+        fianlprice = 0
+        for item in hehe:
+            fianlprice += item.book.price
+        # books = Book.objects.all()
+        books = haha.get_page(page)
+        return render(request, 'main/products.html', {'books':books, 'price':fianlprice, 'cart':oof, 'order':lmao, 'category':category, 'number':number, 'items':hehe})
+    else:
+        category = Category.objects.all()
+        haha = Paginator(Book.objects.all(), 9)
+        page = request.GET.get('page')
+        books = haha.get_page(page)
+        return render(request, 'main/products.html', {'books':books, 'category':category})
+@login_required
+def showcart(request):
+    oof = CartItem.objects.filter(user=request.user)
+    hehe = CartItem.objects.filter(user=request.user)
+    number = 0
+    for num in hehe:
+        number += 1
+    fianlprice = 0
+    for item in oof:
+        fianlprice += item.book.price
+    oof = CartItem.objects.filter(user=request.user)
+    return render(request, 'main/cart.html', {'cart':oof, 'price':fianlprice, 'number':number})
+
+@login_required
+def makeorder(request):
+    if request.method == 'POST':
+        request_cart = CartItem.objects.filter(user=request.user)
+        if not CartItem.objects.filter(user=request.user).exists():
+            return render(request, 'main/orderdone.html', {'error':'Your cart is empty'})
+        else:
+            for item in request_cart:
+                if OrderItem.objects.filter(user=item.user, book=item.book):
+                    return render(request, 'main/orderdone.html', {'error':'You already own this book!'})
+                else:
+                    for item in request_cart:
+                        createorder(item.book, item.user)
+                    request_cart.delete()
+                    return render(request, 'main/orderdone.html', {'error':'Your order has been placed!'})
+    else:
+        return redirect('home')
+
+
+def createorder(product, user):
+    order_item = Book.objects.get(pk=product.id)
+    order_user = User.objects.get(username=user.username)
+    unique_id = ''
+    for x in range(10):
+        letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+        numbers = ['1','2','3','4','5','6','7','8','9','10']
+        choice =  random.randint(1,5)
+        if choice == 1:
+            unique_id += letters[random.randint(0,25)]
+        elif choice == 2:
+            unique_id += numbers[random.randint(0,9)]
+        elif choice == 3:
+            unique_id += letters[random.randint(0,25)]
+        elif choice == 4:
+            unique_id += numbers[random.randint(0,9)]
+        elif choice == 5:
+            unique_id += letters[random.randint(0,25)]
+    OrderItem.objects.create(user=order_user, book=order_item, order_id=unique_id)
+
+
+
+def searchall(request):
+    if request.user.is_authenticated:
+        getobject = request.GET['search']
+        getcategory = request.GET['category']
+        if getcategory == 'All':
+            getcategory = ""
+        search = Book.objects.filter(name__icontains=getobject, category__name__icontains=getcategory)
+        oof = CartItem.objects.filter(user=request.user).values_list('book', flat=True)
+        lmao = OrderItem.objects.filter(user=request.user).values_list('book', flat=True)
+        hehe = CartItem.objects.filter(user=request.user)
+        category = Category.objects.all()
+        number = 0
+        for num in hehe:
+            number += 1
+
+        fianlprice = 0
+        for item in hehe:
+            fianlprice += item.book.price
+        books = Book.objects.all()
+        return render(request, 'main/search.html', {'getobject':getobject, 'getcategory':getcategory ,'books':search, 'price':fianlprice, 'cart':oof, 'order':lmao, 'category':category, 'number':number})
+    else:
+        getobject = request.GET['search']
+        getcategory = request.GET['category']
+        if getcategory == 'All':
+            getcategory = ""
+        search = Book.objects.filter(name__icontains=getobject, category__name__icontains=getcategory)
+        category = Category.objects.all()
+        return render(request, 'main/search.html', {'getobject':getobject, 'getcategory':getcategory ,'books':search,'category':category})
+
+def detailview(request, id):
+    book = get_object_or_404(Book, pk=id)
+    if request.user.is_authenticated:
+        oof = CartItem.objects.filter(user=request.user).values_list('book', flat=True)
+        lmao = OrderItem.objects.filter(user=request.user).values_list('book', flat=True)
+        hehe = CartItem.objects.filter(user=request.user)
+        number = 0
+        for num in hehe:
+            number += 1
+        fianlprice = 0
+        for item in hehe:
+            fianlprice += item.book.price
+        specific = Book.objects.filter(pk=id)
+        matching_books = Book.objects.filter(category=specific.category.id).exclude(pk=id)[:3]
+        reviews = Paginator(ProductReview.objects.filter(book=id), 5)
+        review_page = request.GET.get('reviews')
+        review_objects = reviews.get_page(review_page)
+        one_two_star = ProductReview.objects.filter(book=id, rating=1).count() + ProductReview.objects.filter(book=id, rating=2).count()
+        three_star = ProductReview.objects.filter(book=id, rating=3).count()
+        four_star = ProductReview.objects.filter(book=id, rating=4).count()
+        five_star = ProductReview.objects.filter(book=id, rating=5).count()
+        checking = True
+        if ProductReview.objects.filter(book=id, user=request.user).exists():
+            checking = False
+        if checking == False:
+            gotten_review = ProductReview.objects.get(user=request.user)
+        params = {'book':book, 'price':fianlprice, 'cart':oof, 'order':lmao, 'number':number, 'matching_books':matching_books, 'reviews':review_objects,
+        'one_two_star':one_two_star, 'three_star':three_star, 'four_star':four_star, 'five_star':five_star, 'gotten_review':gotten_review, 'checking':checking}
+        return render(request, 'main/detail.html', params)
+    else:
+        specific = Book.objects.filter(pk=id)
+        matching_books = Book.objects.filter(category=specific.category.id).exclude(pk=id)[:3]
+        reviews = Paginator(ProductReview.objects.filter(book=id), 5)
+        review_page = request.GET.get('reviews')
+        review_objects = reviews.get_page(review_page)
+        one_two_star = ProductReview.objects.filter(book=id, rating=1).count() + ProductReview.objects.filter(book=id, rating=2).count()
+        three_star = ProductReview.objects.filter(book=id, rating=3).count()
+        four_star = ProductReview.objects.filter(book=id, rating=4).count()
+        five_star = ProductReview.objects.filter(book=id, rating=5).count()
+        params = {'book':book, 'matching_books':matching_books, 'reviews':review_objects, 'one_two_star':one_two_star, 'three_star':three_star, 'four_star':four_star, 'five_star':five_star}
+        return render(request, 'main/detail.html', params)
+
+
+@login_required
+def dashboard(request):
+    user = User.objects.get(username=request.user.username)
+    params = {'user':user}
+    return render(request, 'main/userdashboard.html', params)
+
+
+@login_required
+def getorders(request):
+    orders = OrderItem.objects.filter(user=request.user)
+    params = {'orders':orders}
+    return render(request, 'main/OrderDashboard.html', params)
+
+@login_required
+def userchange(request):
+    if request.method == 'POST':
+        user = request.user
+        old_password = request.POST['Old password']
+        new_password1 = request.POST['New password1']
+        new_password2 = request.POST['New password2']
+        if user.check_password(old_password):
+            if new_password1 == new_password2:
+                if new_password1 == "" or new_password2 == "":
+                    return render(request, 'main/change.html', {'error':'Your new passwords are empty!'})
+                else:
+                    user = User.objects.get(username=request.user.username)
+                    user.set_password(new_password1)
+                    user.save()
+                    logout(request)
+                    return render(request, 'main/change.html', {'error':'Your password has been changed succesfully!'})
+            else:
+                return render(request, 'main/change.html', {'error':'Your new passwords do not match'})
+        else:
+            return render(request, 'main/change.html', {'error':'Your old password is incorrect'})
+    elif request.method == "GET":
+        return render(request, 'main/change.html')
+
+
+@login_required
+def usernamechange(request):
+    if request.method == 'POST':
+        user = request.user
+        user_password = request.POST['password']
+        user_newusername = request.POST['username']
+        if user.check_password(user_password):
+            user = User.objects.get(username=request.user.username)
+            try:
+                user.username = user_newusername
+                user.save()
+                logout(request)
+                return render(request, 'main/changeusername.html', {'error':'Your username has been changed! Please login again'})
+            except IntegrityError:
+                return render(request, 'main/changeusername.html', {'error':'That username is already taken! Please try another username'})
+        else:
+            return render(request, 'main/changeusername.html', {'error':'Invalid password!'})
+    elif request.method == 'GET':
+        return render(request, 'main/changeusername.html')
+
+
+def makereview(request):
+    if request.method == 'POST':
+        productId = request.POST['BookID']
+        rating = request.POST['Rating'] 
+        description = request.POST['description']
+        name = request.POST['name']
+        title = request.POST['title']
+        ProductReview.objects.create(rating=rating, user=request.user, book=productId, description=description, name=name)
+        list = []
+        for review in ProductReview.objects.filter(book=productId):  
+            list.append(review.rating)
+        average_score = round(sum(list) / len(list))
+        new_book = Book.objects.get(pk=productId)
+        new_book.average_rating = average_score
+        new_book.save()
+        return redirect('detailview', id=productId)
+
+
+
+@login_required
+def addtocartfordetail(request):
+    if request.method == 'POST':
+        book = Book.objects.get(pk=request.POST['BookID'])
+        CartItem.objects.create(book=book, user=request.user)
+        return redirect('detailview', request.POST['BookID'])
+
+
+@login_required
+def removefromcartfordetail(request):
+    if request.method == 'POST':
+        removebook = Book.objects.get(pk=request.POST['removeid'])
+        CartItem.objects.get(book=removebook, user=request.user).delete()
+        return redirect('detailview', request.POST['removeid'])
+
+
+```
+home.html
+```
+{% extends 'main/topbar.html' %}
+{% block content %}
+<div class="col-lg-6 col-sm-12 order-3 order-lg-2 container pb-3">
+    <form action="{% url 'searchall' %}" class="search" method="GET">
+      <div class="input-group w-100">
+        <select class="custom-select" name="category" id="category">
+          <option value="All" selected>All</option>
+          {% for name in category %}
+          <option value="{{ name.name }}">{{ name.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" class="form-control" style="width:60%;" placeholder="Search" name="search" id="search">
+        <div class="input-group-append">
+          <button class="btn btn-primary" type="submit" style="background-color: #3167EB">
+            <i class="fa fa-search"></i>
+          </button>
+        </div>
+      </div>
+    </form> <!-- search-wrap .end// -->
+  </div>
+  <style>
+    .card-title {
+      color: #3167EB;
+    }
+  </style>
+  <div id="carouselExampleControls" class="carousel slide" data-ride="carousel">
+    <div class="carousel-inner">
+      <div class="carousel-item active">
+        <img class="d-block w-100 img-fluid" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJJCeZ7QJmVB2BhUE1KyA4PPPLym1FP_YwPw&amp;usqp=CAU" alt="First slide">
+      </div>
+      <div class="carousel-item">
+        <img class="d-block w-100 img-fluid" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJJCeZ7QJmVB2BhUE1KyA4PPPLym1FP_YwPw&amp;usqp=CAU" alt="Second slide">
+      </div>
+      <div class="carousel-item">
+        <img class="d-block w-100 img-fluid" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJJCeZ7QJmVB2BhUE1KyA4PPPLym1FP_YwPw&amp;usqp=CAU" alt="Third slide">
+      </div>
+    </div>
+    <a class="carousel-control-next" href="#carouselExampleControls" role="button" data-slide="next" >
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+      <span class="sr-only">Next</span>
+    </a><a class="carousel-control-prev" href="#carouselExampleControls" role="button" data-slide="prev" >
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+      <span class="sr-only">Previous</span>
+    </a>
+  </div>
+  <section class="pt-5 pb-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Engineering Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators1" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators1" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators1" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item">
+                <div class="row">
+
+                    {% for book in engineering_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+
+                </div>
+              </div>
+              <div class="carousel-item active">
+                <div class="row">
+
+
+                    {% for book in engineering_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <form method="GET" action="{% url 'detailview' book.id %}">
+                          <button class="card-img-top" type="submit" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        </form>                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                    {% for book in engineering_books3 %}
+                    <div class="col-md-4 mb-3">
+                      <div class="card">
+                        <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                          {% if not user.is_authenticated %}
+                          <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                          {% else %}
+                              {% if book.id in cart %}
+                              <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                  {% csrf_token %}
+                                  <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                              </form>
+                              {% elif book.id in order %}
+                              <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                              {% else %}
+                              <form method="POST" action="{% url 'addtocartforhome' %}">
+                                  {% csrf_token %}
+                                  <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                              </form>
+                              {% endif %}
+                          {% endif %}
+                        
+                        <div class="card-body">
+                          <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                          <p class="card-text">{{book.category.name}} Book</p>
+                          <h3>${{ book.price }}</h3>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Programming Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators2" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators2" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators2" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in programming_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                
+                </div>
+              </div>
+              <div class="carousel-item active">
+                <div class="row">
+                  {% for book in programming_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in programming_books3 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                 
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Neuroscience Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators3" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators3" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators3" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item active">
+                <div class="row">
+                  {% for book in neuroscience_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in neuroscience_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in neuroscience_books3 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+      
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Physics Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators4" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators4" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators4" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item active">
+                <div class="row">
+                  {% for book in physics_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in physics_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in physics_books3 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                 
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Medical Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators5" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators5" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators5" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in medical_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                
+                </div>
+              </div>
+              <div class="carousel-item active">
+                <div class="row">
+                  {% for book in medical_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                 
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in medical_books3 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                 
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-6">
+          <h3 class="mb-3">Rocket Science Books </h3>
+        </div>
+        <div class="col-6 text-right">
+          <a class="btn btn-primary mb-3 mr-1" href="#carouselExampleIndicators6" role="button" data-slide="prev" style="background-color: #3167EB">
+            <i class="fa fa-arrow-left"></i>
+          </a>
+          <a class="btn btn-primary mb-3 " href="#carouselExampleIndicators6" role="button" data-slide="next" style="background-color: #3167EB">
+            <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="col-12 text-center text-dark">
+          <div id="carouselExampleIndicators6" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in rocket_books1 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                 
+                 
+                </div>
+              </div>
+              <div class="carousel-item active">
+                <div class="row">
+                  {% for book in rocket_books2 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+        
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div class="row">
+                  {% for book in rocket_books3 %}
+                  <div class="col-md-4 mb-3">
+                    <div class="card">
+                      <img class="card-img-top" alt="100%x280" src="{{ book.image.url }}" style="max-height: 20%; max-width: 50%; align-self: center;">
+                        {% if not user.is_authenticated %}
+                        <button class="card-img-top" style="background-color: #FFA500; color:white" href="{% url 'detailview' book.id %}">View Item</button>
+                        {% else %}
+                            {% if book.id in cart %}
+                            <form method="POST" action="{% url 'removefromcartforhome' %}">
+                                {% csrf_token %}
+                                <button name="removeid" value="{{ book.id }}"  class="card-img-top" style="background-color: #FF0000; color:white" type="submit">Remove from cart</button>
+                            </form>
+                            {% elif book.id in order %}
+                            <button class="card-img-top" style="background-color: #FFFF00; color:white" href="{% url 'getorders' %}">Owned!</button>
+                            {% else %}
+                            <form method="POST" action="{% url 'addtocartforhome' %}">
+                                {% csrf_token %}
+                                <button name="bookid" value="{{ book.id }}" type="submit" class="card-img-top" style="background-color: #3167EB; color:white"> Add to cart </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                      
+                      <div class="card-body">
+                        <h4 style="color: #3167EB;" class=""><a style="color: #3167EB;" href="{% url  'detailview' book.id %}">{{ book.name }}</a></h4>
+                        <p class="card-text">{{book.category.name}} Book</p>
+                        <h3>${{ book.price }}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  
+  
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+    <div class="py-3" >
+        <div class="container">
+          <div class="row">
+            <div class="col-lg-4 col-6 p-3"> <img src="https://i.postimg.cc/Pxyx4RQw/final.png"></div>
+            <div class="col-lg-4 col-6 p-3">
+              <p> <a style="color:#3167EB;" target="_blank"> Fake street, 100 <br>NYC - 20179, USA</a> </p>
+              <p> <a style="color:#3167EB;">+1 - 123 456 789 10</a> </p>
+              <p class="mb-0"> <a style="color:#3167EB;">dummy@ebook.com</a> </p>
+            </div>
+            <div class="col-md-4 p-3">
+              <h5> <b>About</b> </h5>
+              <p class="mb-0"> This is a dummy E-Book store, The books and the purchases are not real, This is just for showcase.</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-12 text-center">
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endblock %}
+    ```
+    topbar.html
+    ```
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
+    <link rel="stylesheet" href="https://static.pingendo.com/bootstrap/bootstrap-4.3.1.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600&amp;display=swap" rel="stylesheet">
+  </head>
+  {% if user.is_authenticated %}
+  <nav class="navbar navbar-expand-lg navbar-light" >
+    <div class="container"> <a class="navbar-brand text-primary" href="{% url 'home' %}">
+        <img src="https://i.postimg.cc/Pxyx4RQw/final.png">
+      </a> <button class="navbar-toggler navbar-toggler-right border-0" type="button" data-toggle="collapse" data-target="#navbar5"  aria-expanded="true">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-collapse collapse show" id="navbar5" >
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item"> <a class="nav-link text-dark">Products</a> </li>
+          <li class="nav-item"> <a class="nav-link text-dark" href="#">About</a> </li>
+        </ul>
+        <ul class="navbar-nav mr-5">
+          <li class="nav-item dropdown">
+            <a class="nav-link  dropdown-toggle btn text-white" id="dun" href="{% url 'showcart' %}" data-toggle="dropdown" style="background-color: #3167EB" aria-expanded="false"> Cart ({{ number }}) </a>
+            <script>
+                document.getElementById("dun").onclick = function() {
+                    location.href = "{% url 'showcart' %}"
+                }
+            </script>
+            <ul class="dropdown-menu dropdown-menu-right" >
+              {% for item in items %}
+              <li><a class="dropdown-item" href="{% url 'detailview' item.book.id %}">{{item.book.name}}</a></li>
+              {% endfor %}
+              <li class="dropdown-item">
+                <h5> Your cart costs ${{ price }} </h5>
+              </li>
+            </ul>
+          </li>
+          <style type="text/css">
+            /* ============ desktop view ============ */
+            @media all and (min-width: 992px) {
+              .navbar .nav-item .dropdown-menu {
+                display: none;
+              }
+
+              .navbar .nav-item:hover .nav-link {
+                color: #fff;
+              }
+
+              .navbar .nav-item:hover .dropdown-menu {
+                display: block;
+              }
+
+              .navbar .nav-item .dropdown-menu {
+                margin-top: 0;
+              }
+            }
+
+            .img-fluid {
+              max-width: 100%;
+              height: auto;
+            }
+
+            .hehe {
+              font-family: Arial;
+              color: #3167EB;
+              font-size: 140%;
+              padding: 0.625% 1.25% 0.625% 1.25%;
+              border: solid #3167EB 2px;
+              text-decoration: none;
+            }
+
+            .hehe:hover {
+              background: #3167EB;
+              background-image: -webkit-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -moz-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -ms-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -o-linear-gradient(top, #3167EB, #3167EB);
+              background-image: linear-gradient(to bottom, #3167EB, #3167EB);
+              text-decoration: none;
+            }
+
+            /* ============ desktop view .end// ============ */
+          </style>
+        </ul>
+        <ul class="navbar-nav">
+          <style >
+            #test1 {
+              margin-right: -13%;
+            }
+          </style>
+          <script> if (screen.width <= 649) {
+  document.getElementById('test1').style.marginRight = 0
+}
+          </script>
+          <li class="nav-item dropdown show" >
+            <a class="nav-link  dropdown-toggle btn text-white" href="#" data-toggle="dropdown" style="background-color: #3167EB" aria-expanded="true"> My Account </a>
+            <ul class="dropdown-menu dropdown-menu-right show">
+              <li><a class="dropdown-item" href="{% url 'usernamechange' %}">Change username</a></li>
+              <li><a class="dropdown-item" href="{% url 'userchange' %}">Change password</a></li>
+              <form method="POST" action="{% url 'logoutuser' %}">
+                {% csrf_token %}
+              <button class="dropdown-item text-center text-white btn" style="background-color:red;"> Logout </button>
+              </form>
+            </ul>
+          </li>
+          <style  type="text/css">
+            /* ============ desktop view ============ */
+            @media all and (min-width: 992px) {
+              .navbar .nav-item .dropdown-menu {
+                display: none;
+              }
+
+              .navbar .nav-item:hover .nav-link {
+                color: #fff;
+              }
+
+              .navbar .nav-item:hover .dropdown-menu {
+                display: block;
+              }
+
+              .navbar .nav-item .dropdown-menu {
+                margin-top: 0;
+              }
+            }
+
+            .img-fluid {
+              max-width: 100%;
+              height: auto;
+            }
+
+            .hehe {
+              font-family: Arial;
+              color: #3167EB;
+              font-size: 140%;
+              padding: 0.625% 1.25% 0.625% 1.25%;
+              border: solid #3167EB 2px;
+              text-decoration: none;
+            }
+
+            .hehe:hover {
+              background: #3167EB;
+              background-image: -webkit-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -moz-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -ms-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -o-linear-gradient(top, #3167EB, #3167EB);
+              background-image: linear-gradient(to bottom, #3167EB, #3167EB);
+              text-decoration: none;
+            }
+
+            /* ============ desktop view .end// ============ */
+          </style>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  {% else %}
+  <nav class="navbar navbar-expand-lg navbar-light">
+    <div class="container"> <a class="navbar-brand text-primary" href="#">
+        <img src="https://i.postimg.cc/Pxyx4RQw/final.png">
+      </a> <button class="navbar-toggler navbar-toggler-right border-0" type="button" data-toggle="collapse" data-target="#navbar5"  aria-expanded="true">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-collapse collapse show" id="navbar5" >
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item"> <a class="nav-link text-dark" id="oof" href="{% url 'showproducts' %}">Products</a> </li>
+            <li class="nav-item"> <a class="nav-link text-dark" href="google.com">About</a> </li>
+        </ul>
+        <ul class="navbar-nav mr-5">
+          <li class="nav-item">
+            <a class="nav-link   btn text-white" href="{% url 'signinuser' %}" id="hehehe" data-toggle="dropdown" style="background-color: #3167EB" aria-expanded="false"> Login </a>
+            <script>
+              document.getElementById("hehehe").onclick = function() {
+                  location.href = "{% url 'signinuser' %}"
+              }
+          </script>
+          </li>
+          <style type="text/css" >
+            /* ============ desktop view ============ */
+            @media all and (min-width: 992px) {
+              .navbar .nav-item .dropdown-menu {
+                display: none;
+              }
+
+              .navbar .nav-item:hover .nav-link {
+                color: #fff;
+              }
+
+              .navbar .nav-item:hover .dropdown-menu {
+                display: block;
+              }
+
+              .navbar .nav-item .dropdown-menu {
+                margin-top: 0;
+              }
+            }
+
+            .img-fluid {
+              max-width: 100%;
+              height: auto;
+            }
+
+            .hehe {
+              font-family: Arial;
+              color: #3167EB;
+              font-size: 140%;
+              padding: 0.625% 1.25% 0.625% 1.25%;
+              border: solid #3167EB 2px;
+              text-decoration: none;
+            }
+
+            .hehe:hover {
+              background: #3167EB;
+              background-image: -webkit-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -moz-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -ms-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -o-linear-gradient(top, #3167EB, #3167EB);
+              background-image: linear-gradient(to bottom, #3167EB, #3167EB);
+              text-decoration: none;
+            }
+
+            /* ============ desktop view .end// ============ */
+          </style>
+        </ul>
+        <ul class="navbar-nav">
+          <style >
+            #test1 {
+              margin-right: -13%;
+            }
+          </style>
+          <script> if (screen.width <= 649) {
+  document.getElementById('test1').style.marginRight = 0
+}
+          </script>
+          <li class="nav-item  show"  >
+            <a class="nav-link   btn text-white" href="{% url 'signupuser' %}" id="hahaha" data-toggle="dropdown" style="background-color: #3167EB" aria-expanded="true"> Register </a>
+            <script>
+              document.getElementById("hahaha").onclick = function() {
+                  location.href = "{% url 'signupuser' %}"
+              }
+          </script>
+          </li>
+          <style  type="text/css">
+            /* ============ desktop view ============ */
+            @media all and (min-width: 992px) {
+              .navbar .nav-item .dropdown-menu {
+                display: none;
+              }
+
+              .navbar .nav-item:hover .nav-link {
+                color: #fff;
+              }
+
+              .navbar .nav-item:hover .dropdown-menu {
+                display: block;
+              }
+
+              .navbar .nav-item .dropdown-menu {
+                margin-top: 0;
+              }
+            }
+
+            .img-fluid {
+              max-width: 100%;
+              height: auto;
+            }
+
+            .hehe {
+              font-family: Arial;
+              color: #3167EB;
+              font-size: 140%;
+              padding: 0.625% 1.25% 0.625% 1.25%;
+              border: solid #3167EB 2px;
+              text-decoration: none;
+            }
+
+            .hehe:hover {
+              background: #3167EB;
+              background-image: -webkit-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -moz-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -ms-linear-gradient(top, #3167EB, #3167EB);
+              background-image: -o-linear-gradient(top, #3167EB, #3167EB);
+              background-image: linear-gradient(to bottom, #3167EB, #3167EB);
+              text-decoration: none;
+            }
+
+            /* ============ desktop view .end// ============ */
+          </style>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+  {% block content %} {% endblock %}
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+
+
+
+```
+models.py
+ ```
+ from django.db import models
+from django.contrib.auth.models import User
+# Create your models here.
+
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Category'
+        verbose_name_plural = 'Categories'
+
+
+class Book(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField()
+    price = models.IntegerField()
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    average_rating = models.IntegerField()
+
+    def __str__(self):
+        return self.name
+
+class OrderItem(models.Model):
+    order_id = models.CharField(max_length=10)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return self.user.username
+
+class CartItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return self.user.username
+
+class ProductReview(models.Model):
+    rating = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True)
+    name = models.CharField(max_length=200, blank=True, null=True)
+    title = models.CharField(max_length=450, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    ```
